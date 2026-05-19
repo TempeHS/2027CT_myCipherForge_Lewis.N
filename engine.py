@@ -20,33 +20,85 @@ RULES:
 
 
 # Your encryption code will go below this line!
-def simple_shift(text, shift):
-    """
-    Shift every character by 'shift' positions.
-
-    This is a simple Caesar cipher that works on ALL printable characters,
-    not just letters. It wraps around using modular arithmetic.
-
-    Args:
-        text: The string to encrypt
-        shift: How many positions to shift (positive = forward)
-
-    Returns:
-        The encrypted string
-    """
+def phase1_encrypt(text, key):
+    """Phase 1: Substitution — Shift characters."""
+    shift = key.get("shift", 5)
     result = ""
-
     for char in text:
-        if 32 <= ord(char) <= 126:  # Printable ASCII range
-            # Convert to 0-94 range
+        if 32 <= ord(char) <= 126:
             position = ord(char) - 32
-            # Shift and wrap
             new_position = (position + shift) % 95
-            # Convert back to character
             result += chr(new_position + 32)
         else:
-            # Keep non-printable characters unchanged
             result += char
+    return result
+
+
+def phase1_decrypt(text, key):
+    """Phase 1: Reverse substitution."""
+    shift = key.get("shift", 5)
+    result = ""
+    for char in text:
+        if 32 <= ord(char) <= 126:
+            position = ord(char) - 32
+            new_position = (position - shift) % 95
+            result += chr(new_position + 32)
+        else:
+            result += char
+    return result
+
+
+def phase2_encrypt(text, key):
+    """
+    Phase 2: Transposition — Rearrange character positions.
+
+    Uses block reversal: split into blocks and reverse each one.
+    This layer changes WHERE each character is (its position).
+
+    Args:
+        text: The string to transform (already Phase 1 encrypted)
+        key: Dictionary containing encryption settings
+
+    Returns:
+        The transposed string with characters rearranged
+    """
+    # Get block size from key (default to 4 if not specified)
+    block_size = key.get("block_size", 4)
+
+    result = ""
+
+    # Process text in chunks of block_size
+    for i in range(0, len(text), block_size):
+        # Extract this block (might be shorter at the end)
+        block = text[i : i + block_size]
+        # Reverse the block and add to result
+        result += block[::-1]
+
+    return result
+
+
+def phase2_decrypt(text, key):
+    """
+    Phase 2: Reverse the transposition.
+
+    For block reversal, decryption is the same as encryption!
+    Reversing a reversed block returns the original.
+
+    Args:
+        text: The transposed string
+        key: Dictionary containing the same encryption settings
+
+    Returns:
+        The un-transposed string
+    """
+    # Block reversal is self-inverting: encrypt == decrypt
+    # Reverse twice = original!
+    block_size = key.get("block_size", 4)
+
+    result = ""
+    for i in range(0, len(text), block_size):
+        block = text[i : i + block_size]
+        result += block[::-1]
 
     return result
 
@@ -55,21 +107,14 @@ def encrypt(text, key):
     """
     CipherForge Master Encryption — Applies all 5 phases.
 
-    Currently implemented: Phase 1 only
-    Coming soon: Phases 2-5
-
-    Args:
-        text: The plaintext to encrypt
-        key: Dictionary with settings for all phases
-
-    Returns:
-        Fully encrypted string
+    Currently implemented: Phases 1-2
+    Coming soon: Phases 3-5
     """
-    # Phase 1: Substitution
+    # Phase 1: Substitution — change WHAT characters are
     result = phase1_encrypt(text, key)
 
-    # TODO: Phase 2 — Transposition
-    # result = phase2_encrypt(result, key)
+    # Phase 2: Transposition — change WHERE characters are
+    result = phase2_encrypt(result, key)
 
     # TODO: Phase 3 — Key-Dependent
     # result = phase3_encrypt(result, key)
@@ -87,16 +132,9 @@ def decrypt(text, key):
     """
     CipherForge Master Decryption — Reverses all 5 phases.
 
-    IMPORTANT: Phases must be reversed in OPPOSITE order!
+    CRITICAL: Phases must be reversed in OPPOSITE order!
     Encrypt: 1 → 2 → 3 → 4 → 5
     Decrypt: 5 → 4 → 3 → 2 → 1
-
-    Args:
-        text: The encrypted text
-        key: Same key used for encryption
-
-    Returns:
-        Original plaintext
     """
     result = text
 
@@ -109,8 +147,8 @@ def decrypt(text, key):
     # TODO: Phase 3 — Reverse Key-Dependent
     # result = phase3_decrypt(result, key)
 
-    # TODO: Phase 2 — Reverse Transposition
-    # result = phase2_decrypt(result, key)
+    # Phase 2: Reverse Transposition
+    result = phase2_decrypt(result, key)
 
     # Phase 1: Reverse Substitution (last!)
     result = phase1_decrypt(result, key)
